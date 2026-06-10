@@ -1,0 +1,30 @@
+name: Compilation du Plugin
+
+on:
+  push:
+    branches: [ "main", "master" ] # Se lance dès que vous ajoutez du code
+  workflow_dispatch: # Vous permet de lancer la compilation manuellement d'un clic
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 1. Récupération du code
+      uses: actions/checkout@v4
+
+    - name: 2. Installation de Java 21 (Requis pour Paper 1.21.4)
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: maven
+
+    - name: 3. Compilation avec Maven
+      run: mvn clean package --file pom.xml
+
+    - name: 4. Récupération du fichier .jar final
+      uses: actions/upload-artifact@v4
+      with:
+        name: SCP-Outfits-Jar
+        path: target/*.jar
