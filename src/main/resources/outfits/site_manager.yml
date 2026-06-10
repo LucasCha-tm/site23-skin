@@ -1,0 +1,41 @@
+# Tenue du grade : Site Manager
+display-name: "Site Manager"
+department: "administration"
+
+helmet:
+  material: GOLDEN_HELMET
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+chestplate:
+  material: GOLDEN_CHESTPLATE
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+leggings:
+  material: GOLDEN_LEGGINGS
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+boots:
+  material: GOLDEN_BOOTS
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+mainhand:
+  material: AIR
+  custom-model-data: 0
+  enchants: []
+
+offhand:
+  material: AIR
+  custom-model-data: 0
+  enchants: []

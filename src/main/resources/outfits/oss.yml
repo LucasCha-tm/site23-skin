@@ -1,0 +1,41 @@
+# Tenue du grade : OSS
+display-name: "OSS"
+department: "securite"
+
+helmet:
+  material: IRON_HELMET
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+chestplate:
+  material: IRON_CHESTPLATE
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+leggings:
+  material: IRON_LEGGINGS
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+boots:
+  material: IRON_BOOTS
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+mainhand:
+  material: AIR
+  custom-model-data: 0
+  enchants: []
+
+offhand:
+  material: AIR
+  custom-model-data: 0
+  enchants: []

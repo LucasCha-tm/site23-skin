@@ -1,0 +1,41 @@
+# Tenue du grade : Site Senior Manager
+display-name: "Site Senior Manager"
+department: "administration"
+
+helmet:
+  material: DIAMOND_HELMET
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+chestplate:
+  material: DIAMOND_CHESTPLATE
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+leggings:
+  material: DIAMOND_LEGGINGS
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+boots:
+  material: DIAMOND_BOOTS
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+mainhand:
+  material: AIR
+  custom-model-data: 0
+  enchants: []
+
+offhand:
+  material: AIR
+  custom-model-data: 0
+  enchants: []

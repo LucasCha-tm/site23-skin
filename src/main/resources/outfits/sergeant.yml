@@ -1,0 +1,41 @@
+# Tenue du grade : Sergeant
+display-name: "Sergeant"
+department: "chaos_insurgency"
+
+helmet:
+  material: CHAINMAIL_HELMET
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+chestplate:
+  material: CHAINMAIL_CHESTPLATE
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+leggings:
+  material: CHAINMAIL_LEGGINGS
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+boots:
+  material: CHAINMAIL_BOOTS
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+mainhand:
+  material: AIR
+  custom-model-data: 0
+  enchants: []
+
+offhand:
+  material: AIR
+  custom-model-data: 0
+  enchants: []

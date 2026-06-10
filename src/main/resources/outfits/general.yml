@@ -1,0 +1,41 @@
+# Tenue du grade : Général
+display-name: "Général"
+department: "securite"
+
+helmet:
+  material: NETHERITE_HELMET
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+chestplate:
+  material: NETHERITE_CHESTPLATE
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+leggings:
+  material: NETHERITE_LEGGINGS
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+boots:
+  material: NETHERITE_BOOTS
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+mainhand:
+  material: AIR
+  custom-model-data: 0
+  enchants: []
+
+offhand:
+  material: AIR
+  custom-model-data: 0
+  enchants: []

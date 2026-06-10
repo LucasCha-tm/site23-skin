@@ -1,0 +1,49 @@
+# Tenue du grade : Technicien Confirmé
+display-name: "Technicien Confirmé"
+department: "dist"
+
+helmet:
+  material: LEATHER_HELMET
+  color:
+    r: 50
+    g: 180
+    b: 50
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+chestplate:
+  material: LEATHER_CHESTPLATE
+  color:
+    r: 50
+    g: 180
+    b: 50
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+leggings:
+  material: LEATHER_LEGGINGS
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+boots:
+  material: LEATHER_BOOTS
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+mainhand:
+  material: AIR
+  custom-model-data: 0
+  enchants: []
+
+offhand:
+  material: AIR
+  custom-model-data: 0
+  enchants: []

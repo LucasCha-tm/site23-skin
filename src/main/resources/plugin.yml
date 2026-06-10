@@ -1,0 +1,45 @@
+name: SCPOutfits
+version: '${project.version}'
+main: fr.scp.outfits.SCPOutfitsPlugin
+api-version: '1.21'
+description: Plugin de tenues par grade pour serveur SCP
+authors: [ SCP-Server ]
+
+commands:
+  promote:
+    description: Promouvoit un joueur à un grade et applique la tenue correspondante
+    usage: /promote <joueur> <grade>
+    permission: scpoutfits.promote
+  demote:
+    description: Rétrograde un joueur et applique la tenue correspondante
+    usage: /demote <joueur> <grade>
+    permission: scpoutfits.demote
+  setgrade:
+    description: Définit directement le grade d'un joueur
+    usage: /setgrade <joueur> <grade>
+    permission: scpoutfits.setgrade
+  removeoutfit:
+    description: Retire la tenue d'un joueur
+    usage: /removeoutfit <joueur>
+    permission: scpoutfits.removeoutfit
+  reloadoutfits:
+    description: Recharge la configuration des tenues
+    usage: /reloadoutfits
+    permission: scpoutfits.reload
+
+permissions:
+  scpoutfits.promote:
+    description: Permet de promouvoir un joueur
+    default: op
+  scpoutfits.demote:
+    description: Permet de rétrograder un joueur
+    default: op
+  scpoutfits.setgrade:
+    description: Permet de définir le grade d'un joueur
+    default: op
+  scpoutfits.removeoutfit:
+    description: Permet de retirer la tenue d'un joueur
+    default: op
+  scpoutfits.reload:
+    description: Permet de recharger la config
+    default: op

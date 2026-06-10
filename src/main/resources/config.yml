@@ -1,0 +1,73 @@
+# SCPOutfits - Configuration principale
+# ======================================
+# Les tenues sont définies dans le dossier outfits/
+# Chaque fichier correspond à un grade : <grade>.yml
+# Exemple : recrue.yml, os.yml, scientifique.yml ...
+
+settings:
+  # Préfixe affiché dans les messages
+  prefix: "&8[&cSCP&8] &r"
+  # Si true, les tenues persistent après reconnexion
+  persistent: true
+  # Si true, applique aussi les permissions LuckPerms lors du promote
+  luckperms-integration: false
+
+# Ordre des grades par département (pour /promote sans argument de grade)
+# Optionnel - sert pour la progression automatique dans un département
+departments:
+  securite:
+    display: "&cSécurité"
+    grades:
+      - recrue
+      - os
+      - oss
+      - ods
+      - major
+      - lieutenant
+      - capitaine
+      - general
+
+  scientifique:
+    display: "&bScientifique"
+    grades:
+      - stagiaire_sc
+      - scientifique
+      - scientifique_experimente
+      - administrateur_scientifique
+
+  administration:
+    display: "&eAdministration"
+    grades:
+      - junior_manager
+      - manager
+      - site_assistant_manager
+      - site_manager
+      - site_senior_manager
+      - site_director
+
+  dist:
+    display: "&aDIST"
+    grades:
+      - technicien
+      - technicien_confirme
+
+  medical:
+    display: "&dMédical"
+    grades:
+      - stagiaire_med
+      - docteur
+      - medecin
+      - chirurgien
+      - responsable_medical
+
+  chaos_insurgency:
+    display: "&6Chaos Insurgency"
+    grades:
+      - ic_recrue
+      - soldat
+      - caporal
+      - sergeant
+      - ic_major
+      - ic_lieutenant
+      - ic_capitaine
+      - ic_general

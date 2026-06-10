@@ -1,0 +1,49 @@
+# Tenue du grade : Technicien
+display-name: "Technicien"
+department: "dist"
+
+helmet:
+  material: LEATHER_HELMET
+  color:
+    r: 100
+    g: 200
+    b: 100
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+chestplate:
+  material: LEATHER_CHESTPLATE
+  color:
+    r: 100
+    g: 200
+    b: 100
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+leggings:
+  material: LEATHER_LEGGINGS
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+boots:
+  material: LEATHER_BOOTS
+  unbreakable: true
+  hide-flags: true
+  custom-model-data: 0
+  enchants: []
+
+mainhand:
+  material: AIR
+  custom-model-data: 0
+  enchants: []
+
+offhand:
+  material: AIR
+  custom-model-data: 0
+  enchants: []
