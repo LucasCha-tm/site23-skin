@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>fr.scp</groupId>
-    <artifactId>SCPOutfits</artifactId>
+    <groupId>fr.lucascha</groupId>
+    <artifactId>Site23Skin</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>SCPOutfits</name>
-    <description>Plugin de tenues par grade pour serveur SCP</description>
+    <name>Site23Skin</name>
+    <description>Plugin de skins par grade pour serveur SCP – Site 23</description>
 
     <properties>
         <java.version>21</java.version>
@@ -18,17 +19,32 @@
     </properties>
 
     <repositories>
+        <!-- PaperMC -->
         <repository>
             <id>papermc-repo</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
+        <!-- SkinsRestorer -->
+        <repository>
+            <id>skinsrestorer-repo</id>
+            <url>https://repo.skinsrestorer.net/repository/maven-public/</url>
+        </repository>
     </repositories>
 
     <dependencies>
+        <!-- Paper API 1.21 -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
             <version>1.21.4-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- SkinsRestorer API -->
+        <dependency>
+            <groupId>net.skinsrestorer</groupId>
+            <artifactId>skinsrestorer-api</artifactId>
+            <version>15.4.2</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -45,6 +61,7 @@
                     <target>${java.version}</target>
                 </configuration>
             </plugin>
+            <!-- Shade pour embarquer les dépendances non-provided si besoin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -52,11 +69,16 @@
                 <executions>
                     <execution>
                         <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
+                        <goals><goal>shade</goal></goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <!-- On n'embarque pas Paper ni SkinsRestorer (provided) -->
+                            <artifactSet>
+                                <excludes>
+                                    <exclude>io.papermc.paper:*</exclude>
+                                    <exclude>net.skinsrestorer:*</exclude>
+                                </excludes>
+                            </artifactSet>
                         </configuration>
                     </execution>
                 </executions>
@@ -66,6 +88,17 @@
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
+                <!-- Exclure les PNG du filtering pour éviter la corruption -->
+                <excludes>
+                    <exclude>skins/*.png</exclude>
+                </excludes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <includes>
+                    <include>skins/*.png</include>
+                </includes>
             </resource>
         </resources>
     </build>

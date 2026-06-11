@@ -1,73 +1,183 @@
-# SCPOutfits - Configuration principale
-# ======================================
-# Les tenues sont définies dans le dossier outfits/
-# Chaque fichier correspond à un grade : <grade>.yml
-# Exemple : recrue.yml, os.yml, scientifique.yml ...
-
+# Site23Skin – Configuration
+# ===========================
 settings:
-  # Préfixe affiché dans les messages
-  prefix: "&8[&cSCP&8] &r"
-  # Si true, les tenues persistent après reconnexion
+  prefix: "&8[&cSite-23&8] &r"
+  # true = le skin de grade persiste après reconnexion
   persistent: true
-  # Si true, applique aussi les permissions LuckPerms lors du promote
-  luckperms-integration: false
+  # Délai en ticks avant d'appliquer le skin après connexion (20 ticks = 1s)
+  apply-delay: 40
 
-# Ordre des grades par département (pour /promote sans argument de grade)
-# Optionnel - sert pour la progression automatique dans un département
-departments:
-  securite:
-    display: "&cSécurité"
-    grades:
-      - recrue
-      - os
-      - oss
-      - ods
-      - major
-      - lieutenant
-      - capitaine
-      - general
+# Correspondance grade -> fichier PNG dans le dossier skins/
+# Le fichier doit s'appeler exactement <grade>.png
+# La tête du joueur original est TOUJOURS conservée (lignes 0-15 du PNG)
+grades:
+  # ── Sécurité ──────────────────────────────────────────────────
+  recrue:
+    display: "Recrue"
+    department: "securite"
+    skin-file: "recrue.png"
+
+  os:
+    display: "OS"
+    department: "securite"
+    skin-file: "os.png"
+
+  oss:
+    display: "OSS"
+    department: "securite"
+    skin-file: "oss.png"
+
+  ods:
+    display: "ODS"
+    department: "securite"
+    skin-file: "ods.png"
+
+  major:
+    display: "Major"
+    department: "securite"
+    skin-file: "major.png"
+
+  lieutenant:
+    display: "Lieutenant"
+    department: "securite"
+    skin-file: "lieutenant.png"
+
+  capitaine:
+    display: "Capitaine"
+    department: "securite"
+    skin-file: "capitaine.png"
+
+  general:
+    display: "Général"
+    department: "securite"
+    skin-file: "general.png"
+
+  # ── Scientifique ──────────────────────────────────────────────
+  stagiaire_sc:
+    display: "Stagiaire"
+    department: "scientifique"
+    skin-file: "stagiaire_sc.png"
 
   scientifique:
-    display: "&bScientifique"
-    grades:
-      - stagiaire_sc
-      - scientifique
-      - scientifique_experimente
-      - administrateur_scientifique
+    display: "Scientifique"
+    department: "scientifique"
+    skin-file: "scientifique.png"
 
-  administration:
-    display: "&eAdministration"
-    grades:
-      - junior_manager
-      - manager
-      - site_assistant_manager
-      - site_manager
-      - site_senior_manager
-      - site_director
+  scientifique_experimente:
+    display: "Scientifique Expérimenté"
+    department: "scientifique"
+    skin-file: "scientifique_experimente.png"
 
-  dist:
-    display: "&aDIST"
-    grades:
-      - technicien
-      - technicien_confirme
+  administrateur_scientifique:
+    display: "Administrateur Scientifique"
+    department: "scientifique"
+    skin-file: "administrateur_scientifique.png"
 
-  medical:
-    display: "&dMédical"
-    grades:
-      - stagiaire_med
-      - docteur
-      - medecin
-      - chirurgien
-      - responsable_medical
+  # ── Administration ────────────────────────────────────────────
+  junior_manager:
+    display: "Junior Manager"
+    department: "administration"
+    skin-file: "junior_manager.png"
 
-  chaos_insurgency:
-    display: "&6Chaos Insurgency"
-    grades:
-      - ic_recrue
-      - soldat
-      - caporal
-      - sergeant
-      - ic_major
-      - ic_lieutenant
-      - ic_capitaine
-      - ic_general
+  manager:
+    display: "Manager"
+    department: "administration"
+    skin-file: "manager.png"
+
+  site_assistant_manager:
+    display: "Site Assistant Manager"
+    department: "administration"
+    skin-file: "site_assistant_manager.png"
+
+  site_manager:
+    display: "Site Manager"
+    department: "administration"
+    skin-file: "site_manager.png"
+
+  site_senior_manager:
+    display: "Site Senior Manager"
+    department: "administration"
+    skin-file: "site_senior_manager.png"
+
+  site_director:
+    display: "Site Director"
+    department: "administration"
+    skin-file: "site_director.png"
+
+  # ── DIST ─────────────────────────────────────────────────────
+  technicien:
+    display: "Technicien"
+    department: "dist"
+    skin-file: "technicien.png"
+
+  technicien_confirme:
+    display: "Technicien Confirmé"
+    department: "dist"
+    skin-file: "technicien_confirme.png"
+
+  # ── Médical ───────────────────────────────────────────────────
+  stagiaire_med:
+    display: "Stagiaire (Médical)"
+    department: "medical"
+    skin-file: "stagiaire_med.png"
+
+  docteur:
+    display: "Docteur"
+    department: "medical"
+    skin-file: "docteur.png"
+
+  medecin:
+    display: "Médecin"
+    department: "medical"
+    skin-file: "medecin.png"
+
+  chirurgien:
+    display: "Chirurgien"
+    department: "medical"
+    skin-file: "chirurgien.png"
+
+  responsable_medical:
+    display: "Responsable Département Méd."
+    department: "medical"
+    skin-file: "responsable_medical.png"
+
+  # ── Chaos Insurgency ──────────────────────────────────────────
+  ic_recrue:
+    display: "Recrue (IC)"
+    department: "chaos_insurgency"
+    skin-file: "ic_recrue.png"
+
+  soldat:
+    display: "Soldat"
+    department: "chaos_insurgency"
+    skin-file: "soldat.png"
+
+  caporal:
+    display: "Caporal"
+    department: "chaos_insurgency"
+    skin-file: "caporal.png"
+
+  sergeant:
+    display: "Sergeant"
+    department: "chaos_insurgency"
+    skin-file: "sergeant.png"
+
+  ic_major:
+    display: "Major (IC)"
+    department: "chaos_insurgency"
+    skin-file: "ic_major.png"
+
+  ic_lieutenant:
+    display: "Lieutenant (IC)"
+    department: "chaos_insurgency"
+    skin-file: "ic_lieutenant.png"
+
+  ic_capitaine:
+    display: "Capitaine (IC)"
+    department: "chaos_insurgency"
+    skin-file: "ic_capitaine.png"
+
+  ic_general:
+    display: "Général (IC)"
+    department: "chaos_insurgency"
+    skin-file: "ic_general.png"
