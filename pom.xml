@@ -24,11 +24,12 @@
             <id>papermc-repo</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
-        <!-- SkinsRestorer -->
-        <repository>
-            <id>skinsrestorer-repo</id>
-            <url>https://repo.skinsrestorer.net/repository/maven-public/</url>
-        </repository>
+        <!--
+            SkinsRestorer : le jar est téléchargé depuis GitHub Releases
+            et installé dans le repo Maven local par le workflow GitHub Actions.
+            Voir .github/workflows/build.yml — étape "Download SkinsRestorer jar".
+            On n'a donc pas besoin du repo skinsrestorer.net ici.
+        -->
     </repositories>
 
     <dependencies>
