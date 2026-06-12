@@ -19,17 +19,10 @@
     </properties>
 
     <repositories>
-        <!-- PaperMC -->
         <repository>
             <id>papermc-repo</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
-        <!--
-            SkinsRestorer : le jar est téléchargé depuis GitHub Releases
-            et installé dans le repo Maven local par le workflow GitHub Actions.
-            Voir .github/workflows/build.yml — étape "Download SkinsRestorer jar".
-            On n'a donc pas besoin du repo skinsrestorer.net ici.
-        -->
     </repositories>
 
     <dependencies>
@@ -41,7 +34,11 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- SkinsRestorer API -->
+        <!--
+            SkinsRestorer API — jar installé manuellement depuis libs/SkinsRestorer.jar
+            via "mvn install:install-file" dans le workflow GitHub Actions.
+            NE PAS chercher sur un repo distant.
+        -->
         <dependency>
             <groupId>net.skinsrestorer</groupId>
             <artifactId>skinsrestorer-api</artifactId>
@@ -51,7 +48,6 @@
     </dependencies>
 
     <build>
-        <defaultGoal>clean package</defaultGoal>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -62,7 +58,6 @@
                     <target>${java.version}</target>
                 </configuration>
             </plugin>
-            <!-- Shade pour embarquer les dépendances non-provided si besoin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -73,7 +68,6 @@
                         <goals><goal>shade</goal></goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <!-- On n'embarque pas Paper ni SkinsRestorer (provided) -->
                             <artifactSet>
                                 <excludes>
                                     <exclude>io.papermc.paper:*</exclude>
@@ -89,7 +83,6 @@
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
-                <!-- Exclure les PNG du filtering pour éviter la corruption -->
                 <excludes>
                     <exclude>skins/*.png</exclude>
                 </excludes>

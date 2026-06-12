@@ -12,98 +12,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ── 1. Récupère le code ─────────────────────────────────────
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── 2. Configure Java 21 ────────────────────────────────────
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: maven
+          # PAS de cache Maven — on veut un environnement propre à chaque fois
 
-      # ── 3. Télécharge et installe le jar API SkinsRestorer ──────
-      #
-      #  Le repo repo.skinsrestorer.net peut être inaccessible selon
-      #  les environnements. On télécharge donc le jar depuis le repo
-      #  Maven central de PaperMC qui le mirror, ou en fallback depuis
-      #  le jar complet de la release GitHub (qui embarque l'API).
-      #
-      - name: Install SkinsRestorer API
+      # Installe le jar local libs/SkinsRestorer.jar dans le repo Maven local
+      - name: Install SkinsRestorer from libs/
         run: |
-          SR_VERSION="15.4.2"
-          API_JAR="skinsrestorer-api.jar"
-
-          echo "==> Tentative 1 : repo.skinsrestorer.net"
-          curl -f -L --max-time 30 \
-            "https://repo.skinsrestorer.net/repository/maven-public/net/skinsrestorer/skinsrestorer-api/${SR_VERSION}/skinsrestorer-api-${SR_VERSION}.jar" \
-            -o "$API_JAR" 2>/dev/null && API_OK=true || API_OK=false
-
-          if [ "$API_OK" = "false" ] || [ ! -s "$API_JAR" ]; then
-            echo "==> Tentative 2 : extraction depuis le jar complet GitHub Releases"
-            # Télécharge le jar complet de SkinsRestorer
-            curl -f -L --max-time 60 \
-              "https://github.com/SkinsRestorer/SkinsRestorer/releases/download/${SR_VERSION}/SkinsRestorer.jar" \
-              -o "SkinsRestorer-full.jar"
-
-            # Extrait uniquement les classes de l'API (package net/skinsrestorer/api/)
-            mkdir -p sr-api-extracted
-            cd sr-api-extracted
-            jar xf ../SkinsRestorer-full.jar
-            cd ..
-
-            # Recrée un jar contenant seulement l'API publique
-            jar cf "$API_JAR" -C sr-api-extracted .
-            echo "==> Jar API extrait du jar complet."
-          fi
-
-          if [ ! -s "$API_JAR" ]; then
-            echo "ERREUR : Impossible d'obtenir le jar SkinsRestorer API !"
-            exit 1
-          fi
-
-          echo "==> Taille du jar : $(du -sh $API_JAR | cut -f1)"
-
-          # Installe dans le repo Maven local
           mvn install:install-file \
-            -Dfile="$API_JAR" \
+            -Dfile=libs/SkinsRestorer.jar \
             -DgroupId=net.skinsrestorer \
             -DartifactId=skinsrestorer-api \
-            -Dversion="${SR_VERSION}" \
+            -Dversion=15.4.2 \
             -Dpackaging=jar \
             -DgeneratePom=true \
-            --no-transfer-progress -q
+            --no-transfer-progress
 
-          echo "==> SkinsRestorer API installé dans le repo Maven local."
-
-      # ── 4. Compile le plugin ────────────────────────────────────
       - name: Build with Maven
         run: |
           mvn clean package \
-            --file pom.xml \
             --no-transfer-progress \
             -Dmaven.test.skip=true
 
-      # ── 5. Vérifie le jar produit ───────────────────────────────
-      - name: Verify output jar
-        run: |
-          # Le shade plugin crée original-Site23Skin-*.jar ET Site23Skin-*.jar
-          # On veut Site23Skin-*.jar (sans "original-")
-          JAR=$(find target -name "Site23Skin-*.jar" ! -name "original-*" | head -1)
-          if [ -z "$JAR" ]; then
-            JAR=$(find target -name "*.jar" ! -name "original-*" | head -1)
-          fi
-          if [ -z "$JAR" ]; then
-            echo "ERREUR : Aucun jar trouvé !"
-            ls -la target/
-            exit 1
-          fi
-          echo "Jar produit : $JAR ($(du -sh $JAR | cut -f1))"
-          echo "JAR_PATH=$JAR" >> $GITHUB_ENV
-
-      # ── 6. Upload le jar comme artifact téléchargeable ──────────
       - name: Upload plugin jar
         uses: actions/upload-artifact@v4
         with:
