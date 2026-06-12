@@ -181,3 +181,9 @@ grades:
     display: "Général (IC)"
     department: "chaos_insurgency"
     skin-file: "ic_general.png"
+
+  # ── Classe D ──────────────────────────────────────────────────
+  classe_d:
+    display: "Classe D"
+    department: "classe_d"
+    skin-file: "classe_d.png"
