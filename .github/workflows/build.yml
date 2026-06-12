@@ -20,25 +20,20 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          # PAS de cache Maven — on veut un environnement propre à chaque fois
 
-      # Installe le jar local libs/SkinsRestorer.jar dans le repo Maven local
-      - name: Install SkinsRestorer from libs/
+      - name: Vérifier que libs/SkinsRestorer.jar est présent
         run: |
-          mvn install:install-file \
-            -Dfile=libs/SkinsRestorer.jar \
-            -DgroupId=net.skinsrestorer \
-            -DartifactId=skinsrestorer-api \
-            -Dversion=15.4.2 \
-            -Dpackaging=jar \
-            -DgeneratePom=true \
-            --no-transfer-progress
+          if [ ! -f "libs/SkinsRestorer.jar" ]; then
+            echo "ERREUR : libs/SkinsRestorer.jar est absent du repo !"
+            echo "Télécharge SkinsRestorer.jar depuis :"
+            echo "https://github.com/SkinsRestorer/SkinsRestorer/releases/tag/15.4.2"
+            echo "et place-le dans le dossier libs/ de ton repo."
+            exit 1
+          fi
+          echo "libs/SkinsRestorer.jar trouvé ($(du -sh libs/SkinsRestorer.jar | cut -f1))"
 
-      - name: Build with Maven
-        run: |
-          mvn clean package \
-            --no-transfer-progress \
-            -Dmaven.test.skip=true
+      - name: Build avec Maven
+        run: mvn clean package --no-transfer-progress -Dmaven.test.skip=true
 
       - name: Upload plugin jar
         uses: actions/upload-artifact@v4

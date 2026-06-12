@@ -35,15 +35,15 @@
         </dependency>
 
         <!--
-            SkinsRestorer API — jar installé manuellement depuis libs/SkinsRestorer.jar
-            via "mvn install:install-file" dans le workflow GitHub Actions.
-            NE PAS chercher sur un repo distant.
+            SkinsRestorer — jar local dans libs/SkinsRestorer.jar
+            scope=system : Maven utilise directement le fichier, sans chercher sur internet
         -->
         <dependency>
             <groupId>net.skinsrestorer</groupId>
             <artifactId>skinsrestorer-api</artifactId>
             <version>15.4.2</version>
-            <scope>provided</scope>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/SkinsRestorer.jar</systemPath>
         </dependency>
     </dependencies>
 
@@ -68,6 +68,7 @@
                         <goals><goal>shade</goal></goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <!-- On exclut SR du jar final (il est déjà sur le serveur) -->
                             <artifactSet>
                                 <excludes>
                                     <exclude>io.papermc.paper:*</exclude>
