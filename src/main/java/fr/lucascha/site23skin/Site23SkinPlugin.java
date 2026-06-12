@@ -5,7 +5,6 @@ import fr.lucascha.site23skin.listeners.PlayerListener;
 import fr.lucascha.site23skin.managers.GradeManager;
 import fr.lucascha.site23skin.managers.PlayerDataManager;
 import fr.lucascha.site23skin.managers.SkinManager;
-import net.skinsrestorer.api.SkinsRestorer;
 import net.skinsrestorer.api.SkinsRestorerProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -17,7 +16,6 @@ public class Site23SkinPlugin extends JavaPlugin {
 
     private static Site23SkinPlugin instance;
 
-    private SkinsRestorer skinsRestorer;
     private GradeManager gradeManager;
     private PlayerDataManager playerDataManager;
     private SkinManager skinManager;
@@ -35,9 +33,9 @@ public class Site23SkinPlugin extends JavaPlugin {
             getLogger().info("Dossier skins/ créé. Place tes PNG dedans puis /skinreload.");
         }
 
-        // Récupère l'instance SkinsRestorer
+        // Vérifie que SkinsRestorer est bien disponible
         try {
-            skinsRestorer = SkinsRestorerProvider.get();
+            SkinsRestorerProvider.get();
             getLogger().info("SkinsRestorer API connectée.");
         } catch (Exception e) {
             getLogger().severe("Impossible de connecter SkinsRestorer API : " + e.getMessage());
@@ -47,20 +45,22 @@ public class Site23SkinPlugin extends JavaPlugin {
         }
 
         // Managers
-        gradeManager     = new GradeManager(this);
-        playerDataManager= new PlayerDataManager(this);
-        skinManager      = new SkinManager(this);
+        gradeManager      = new GradeManager(this);
+        playerDataManager = new PlayerDataManager(this);
+        skinManager       = new SkinManager(this);
 
         gradeManager.loadGrades();
 
         // Commandes
         Objects.requireNonNull(getCommand("skingrade"))  .setExecutor(new SkinGradeCommand(this));
         Objects.requireNonNull(getCommand("skingrade"))  .setTabCompleter(new SkinGradeCommand(this));
-        Objects.requireNonNull(getCommand("skinretirer")) .setExecutor(new SkinRetirerCommand(this));
-        Objects.requireNonNull(getCommand("skinretirer")) .setTabCompleter(new SkinRetirerCommand(this));
+        Objects.requireNonNull(getCommand("skinretirer")).setExecutor(new SkinRetirerCommand(this));
+        Objects.requireNonNull(getCommand("skinretirer")).setTabCompleter(new SkinRetirerCommand(this));
         Objects.requireNonNull(getCommand("skinreload")) .setExecutor(new SkinReloadCommand(this));
         Objects.requireNonNull(getCommand("skininfo"))   .setExecutor(new SkinInfoCommand(this));
         Objects.requireNonNull(getCommand("skininfo"))   .setTabCompleter(new SkinInfoCommand(this));
+        Objects.requireNonNull(getCommand("espawn"))     .setExecutor(new EspawnCommand(this));
+        Objects.requireNonNull(getCommand("espawn"))     .setTabCompleter(new EspawnCommand(this));
 
         // Listener
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
@@ -77,7 +77,6 @@ public class Site23SkinPlugin extends JavaPlugin {
     // ── Getters ──────────────────────────────────────────────────
 
     public static Site23SkinPlugin getInstance() { return instance; }
-    public SkinsRestorer getSkinsRestorer()       { return skinsRestorer; }
     public GradeManager getGradeManager()         { return gradeManager; }
     public PlayerDataManager getPlayerDataManager(){ return playerDataManager; }
     public SkinManager getSkinManager()            { return skinManager; }

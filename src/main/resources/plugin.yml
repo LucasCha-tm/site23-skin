@@ -23,6 +23,10 @@ commands:
     description: Affiche le grade actuel d'un joueur
     usage: /skininfo [joueur]
     permission: site23skin.info
+  espawn:
+    description: Restaure le skin Mojang original (skin du compte MC)
+    usage: /espawn [joueur]
+    permission: site23skin.espawn
 
 permissions:
   site23skin.skingrade:
@@ -36,4 +40,10 @@ permissions:
     default: op
   site23skin.info:
     description: Voir le grade d'un joueur
+    default: op
+  site23skin.espawn:
+    description: Restaurer son propre skin Mojang original
+    default: true
+  site23skin.espawn.other:
+    description: Restaurer le skin Mojang d'un autre joueur
     default: op
