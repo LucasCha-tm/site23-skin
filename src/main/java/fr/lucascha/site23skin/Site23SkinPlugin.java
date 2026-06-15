@@ -61,6 +61,7 @@ public class Site23SkinPlugin extends JavaPlugin {
         Objects.requireNonNull(getCommand("skininfo"))   .setTabCompleter(new SkinInfoCommand(this));
         Objects.requireNonNull(getCommand("espawn"))     .setExecutor(new EspawnCommand(this));
         Objects.requireNonNull(getCommand("espawn"))     .setTabCompleter(new EspawnCommand(this));
+        Objects.requireNonNull(getCommand("setlobby"))   .setExecutor(new SetLobbyCommand(this));
 
         // Listener
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);

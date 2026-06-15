@@ -24,9 +24,13 @@ commands:
     usage: /skininfo [joueur]
     permission: site23skin.info
   espawn:
-    description: Restaure le skin Mojang original (skin du compte MC)
+    description: Restaure le skin Mojang original (skin du compte MC) et téléporte au lobby
     usage: /espawn [joueur]
     permission: site23skin.espawn
+  setlobby:
+    description: Définit le point de lobby pour /espawn (position actuelle)
+    usage: /setlobby
+    permission: site23skin.setlobby
 
 permissions:
   site23skin.skingrade:
@@ -46,4 +50,7 @@ permissions:
     default: true
   site23skin.espawn.other:
     description: Restaurer le skin Mojang d'un autre joueur
+    default: op
+  site23skin.setlobby:
+    description: Définir le point de lobby (/setlobby)
     default: op

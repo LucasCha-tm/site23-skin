@@ -6,6 +6,15 @@ settings:
   persistent: true
   # Délai en ticks avant d'appliquer le skin après connexion (20 ticks = 1s)
   apply-delay: 40
+  # Lobby pour /espawn : coordonnées de téléportation
+  # Définissez le monde et les coordonnées de votre lobby ici
+  lobby:
+    world: "world"
+    x: 0.5
+    y: 64.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
 
 # Correspondance grade -> fichier PNG dans le dossier skins/
 # Le fichier doit s'appeler exactement <grade>.png
@@ -187,3 +196,23 @@ grades:
     display: "Classe D"
     department: "classe_d"
     skin-file: "classe_d.png"
+
+  classe_d_jaune:
+    display: "Classe D (Brassard Jaune)"
+    department: "classe_d"
+    skin-file: "classe_d_jaune.png"
+
+  classe_d_blanc:
+    display: "Classe D (Brassard Blanc)"
+    department: "classe_d"
+    skin-file: "classe_d_blanc.png"
+
+  classe_d_rouge:
+    display: "Classe D (Brassard Rouge)"
+    department: "classe_d"
+    skin-file: "classe_d_rouge.png"
+
+  classe_d_noir:
+    display: "Classe D (Brassard Noir)"
+    department: "classe_d"
+    skin-file: "classe_d_noir.png"

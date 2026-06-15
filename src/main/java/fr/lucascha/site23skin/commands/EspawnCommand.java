@@ -3,6 +3,8 @@ package fr.lucascha.site23skin.commands;
 import fr.lucascha.site23skin.Site23SkinPlugin;
 import fr.lucascha.site23skin.managers.PlayerDataManager;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -14,7 +16,7 @@ import java.util.List;
 
 /**
  * /espawn [joueur]
- * Restaure le skin Mojang original du compte Minecraft.
+ * Restaure le skin Mojang original du compte Minecraft ET téléporte au lobby.
  * Sans argument = s'applique au joueur qui tape la commande.
  * Avec argument = s'applique à un autre joueur (permission admin requise).
  */
@@ -59,6 +61,10 @@ public class EspawnCommand implements CommandExecutor, TabCompleter {
 
         sender.sendMessage(plugin.format("&7Restauration du skin original de &e" + finalTarget.getName() + "&7..."));
 
+        // 1) Téléporter au lobby (sur le thread principal)
+        teleportToLobby(finalTarget, isSelf, sender);
+
+        // 2) Restaurer le skin Mojang original (async)
         plugin.getSkinManager().restoreOriginalSkin(finalTarget, () -> {
             // Efface le grade enregistré
             PlayerDataManager dm = plugin.getPlayerDataManager();
@@ -74,6 +80,40 @@ public class EspawnCommand implements CommandExecutor, TabCompleter {
         });
 
         return true;
+    }
+
+    /**
+     * Téléporte le joueur au lobby configuré dans config.yml.
+     * Si le monde ou les coordonnées ne sont pas définis, avertit l'admin.
+     */
+    private void teleportToLobby(Player target, boolean isSelf, CommandSender sender) {
+        String worldName = plugin.getConfig().getString("settings.lobby.world", "world");
+        World world = Bukkit.getWorld(worldName);
+
+        if (world == null) {
+            plugin.getLogger().warning("Monde de lobby introuvable : \"" + worldName + "\". Configurez settings.lobby.world dans config.yml");
+            if (!isSelf) {
+                sender.sendMessage(plugin.format("&eAvertissement : le monde de lobby \"" + worldName + "\" est introuvable. Téléportation annulée."));
+            }
+            target.sendMessage(plugin.format("&eImpossible de vous téléporter au lobby : monde introuvable."));
+            return;
+        }
+
+        double x    = plugin.getConfig().getDouble("settings.lobby.x",   0.5);
+        double y    = plugin.getConfig().getDouble("settings.lobby.y",   64.0);
+        double z    = plugin.getConfig().getDouble("settings.lobby.z",   0.5);
+        float  yaw  = (float) plugin.getConfig().getDouble("settings.lobby.yaw",   0.0);
+        float  pitch= (float) plugin.getConfig().getDouble("settings.lobby.pitch", 0.0);
+
+        Location lobbyLoc = new Location(world, x, y, z, yaw, pitch);
+        target.teleport(lobbyLoc);
+
+        if (isSelf) {
+            target.sendMessage(plugin.format("&aVous avez été téléporté au lobby."));
+        } else {
+            target.sendMessage(plugin.format("&aVous avez été téléporté au lobby par un admin."));
+            sender.sendMessage(plugin.format("&e" + target.getName() + " &aa été téléporté au lobby."));
+        }
     }
 
     @Override
