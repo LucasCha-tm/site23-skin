@@ -31,11 +31,17 @@ import java.util.logging.Logger;
  * LOGIQUE DE FUSION (skin 64x64) :
  *   y = 0..15  → tête + chapeau  → conservé depuis le skin Mojang du joueur
  *   y = 16..63 → corps/bras/jambes → remplacé par le skin de grade
+ *
+ * SIGNATURE : passage par MineSkin API pour obtenir une vraie paire
+ * value + signature Mojang signée (sans ça, le client ignore le skin silencieusement).
  */
 public class SkinManager {
 
     private final Site23SkinPlugin plugin;
     private final Logger log;
+
+    // Cache : skinName → SkinProperty (value+signature) pour éviter les appels répétés à MineSkin
+    private final java.util.Map<String, SkinProperty> skinCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     public SkinManager(Site23SkinPlugin plugin) {
         this.plugin = plugin;
@@ -77,7 +83,6 @@ public class SkinManager {
             public void run() {
                 try {
                     SkinsRestorer sr = SkinsRestorerProvider.get();
-                    // Supprime le skin custom → SR remet le skin Mojang du joueur
                     sr.getPlayerStorage().removeSkinIdOfPlayer(player.getUniqueId());
                     sr.getSkinApplier(Player.class).applySkin(player);
                     log.info("Skin restauré pour " + player.getName());
@@ -112,11 +117,8 @@ public class SkinManager {
         gradeSkin = ensureSize(gradeSkin, 64, 64);
 
         // 2) Récupère le skin Mojang actuel du joueur
-        //    On utilise l'API Bukkit Paper (PlayerProfile) pour lire la texture,
-        //    ce qui ne nécessite pas d'appel HTTP supplémentaire.
         BufferedImage playerSkin = fetchPlayerSkinViaBukkit(player);
         if (playerSkin == null) {
-            // Fallback : appel direct à l'API Mojang
             playerSkin = fetchPlayerSkinFromMojang(player.getUniqueId());
         }
 
@@ -128,42 +130,120 @@ public class SkinManager {
             playerSkin = ensureSize(playerSkin, 64, 64);
         }
 
-        // 3) Sauvegarde la texture originale pour restauration ultérieure
-        saveOriginalSkinIfNeeded(player);
-
-        // 4) Fusion : tête+chapeau du joueur (y 0-15) + corps du grade (y 16-63)
+        // 3) Fusion : tête+chapeau du joueur (y 0-15) + corps du grade (y 16-63)
         BufferedImage merged = mergeSkins(playerSkin, gradeSkin);
 
-        // 5) Convertit en PNG base64
-        String base64Png = imageToBase64(merged);
+        // 4) Clé de cache unique : grade + UUID joueur (la tête change selon le joueur)
+        String cacheKey = "site23_" + grade.getSkinFile().replace(".png", "")
+                        + "_" + player.getUniqueId().toString().replace("-", "");
 
-        // 6) Crée le payload de texture Minecraft
-        //    Format : base64( {"textures":{"SKIN":{"url":"data:image/png;base64,<B64>"}}} )
-        String textureValue = buildTextureValue(base64Png);
+        // 5) Obtenir value+signature via MineSkin (avec cache)
+        SkinProperty skinProp = skinCache.get(cacheKey);
+        if (skinProp == null) {
+            skinProp = uploadToMineSkin(merged, cacheKey);
+            if (skinProp == null) {
+                log.severe("Échec de l'upload MineSkin pour " + player.getName()
+                        + " (grade: " + grade.getDisplayName() + ")");
+                return false;
+            }
+            skinCache.put(cacheKey, skinProp);
+            log.info("MineSkin : skin mis en cache pour " + cacheKey);
+        } else {
+            log.fine("Cache hit MineSkin pour " + cacheKey);
+        }
 
-        // 7) Crée la SkinProperty (value=texture, signature="" — OK pour custom skins SR)
-        SkinProperty skinProp = SkinProperty.of(textureValue, "");
+        // 6) Enregistre dans SR et applique
+        SkinsRestorer        sr = SkinsRestorerProvider.get();
+        SkinStorage          ss = sr.getSkinStorage();
+        PlayerStorage        ps = sr.getPlayerStorage();
+        SkinApplier<Player>  sa = sr.getSkinApplier(Player.class);
 
-        // 8) Enregistre le skin custom dans SR et l'applique
-        SkinsRestorer sr        = SkinsRestorerProvider.get();
-        SkinStorage   ss        = sr.getSkinStorage();
-        PlayerStorage ps        = sr.getPlayerStorage();
-        SkinApplier<Player> sa  = sr.getSkinApplier(Player.class);
-
-        // Identifiant unique pour ce skin fusionné (par joueur)
-        String skinName = "site23_" + player.getUniqueId().toString().replace("-", "");
-
-        // Stocke le skin custom
-        ss.setCustomSkinData(skinName, skinProp);
-
-        // Associe ce skin au joueur
-        ps.setSkinIdOfPlayer(player.getUniqueId(), SkinIdentifier.ofCustom(skinName));
-
-        // Applique immédiatement
+        ss.setCustomSkinData(cacheKey, skinProp);
+        ps.setSkinIdOfPlayer(player.getUniqueId(), SkinIdentifier.ofCustom(cacheKey));
         sa.applySkin(player);
 
         log.info("✔ Skin appliqué à " + player.getName() + " (grade : " + grade.getDisplayName() + ")");
         return true;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // MINESKIN API — upload → value + signature Mojang signée
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Upload le skin PNG fusionné sur MineSkin et récupère la paire value+signature.
+     * MineSkin génère une vraie signature Mojang acceptée par tous les clients.
+     *
+     * Doc API : https://rest.mineskin.org/docs
+     */
+    private SkinProperty uploadToMineSkin(BufferedImage image, String skinName) {
+        try {
+            // Convertit l'image en bytes PNG
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(image, "png", baos);
+            byte[] pngBytes = baos.toByteArray();
+
+            // Prépare le multipart/form-data
+            String boundary = "----Site23Boundary" + System.currentTimeMillis();
+            URL url = new URL("https://api.mineskin.org/generate/upload");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(30000);
+            conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+            conn.setRequestProperty("User-Agent", "Site23Skin/1.0 (contact: admin@site23)");
+            conn.setRequestProperty("Accept", "application/json");
+
+            try (OutputStream os = conn.getOutputStream();
+                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(os, StandardCharsets.UTF_8), true)) {
+
+                // Champ "file"
+                writer.append("--").append(boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"file\"; filename=\"")
+                      .append(skinName).append(".png\"").append("\r\n");
+                writer.append("Content-Type: image/png").append("\r\n");
+                writer.append("\r\n");
+                writer.flush();
+                os.write(pngBytes);
+                os.flush();
+                writer.append("\r\n");
+
+                // Champ "visibility" (0 = public, 1 = private)
+                writer.append("--").append(boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"visibility\"").append("\r\n");
+                writer.append("\r\n").append("1").append("\r\n");
+
+                // Ferme le boundary
+                writer.append("--").append(boundary).append("--").append("\r\n");
+                writer.flush();
+            }
+
+            int responseCode = conn.getResponseCode();
+            InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
+            String responseBody = streamToString(is);
+
+            if (responseCode != 200) {
+                log.warning("MineSkin HTTP " + responseCode + " : " + responseBody);
+                return null;
+            }
+
+            // Parse le JSON de réponse (sans dépendance externe)
+            String value     = extractJsonString(responseBody, "value");
+            String signature = extractJsonString(responseBody, "signature");
+
+            if (value == null || signature == null) {
+                log.warning("MineSkin réponse invalide (value/signature manquants) : " + responseBody);
+                return null;
+            }
+
+            return SkinProperty.of(value, signature);
+
+        } catch (Exception e) {
+            log.severe("uploadToMineSkin exception : " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -178,8 +258,8 @@ public class SkinManager {
     private BufferedImage mergeSkins(BufferedImage playerSkin, BufferedImage gradeSkin) {
         BufferedImage result = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = result.createGraphics();
-        g.drawImage(gradeSkin, 0, 0, null);                               // corps du grade
-        g.drawImage(playerSkin.getSubimage(0, 0, 64, 16), 0, 0, null);  // tête du joueur
+        g.drawImage(gradeSkin, 0, 0, null);
+        g.drawImage(playerSkin.getSubimage(0, 0, 64, 16), 0, 0, null);
         g.dispose();
         return result;
     }
@@ -188,14 +268,9 @@ public class SkinManager {
     // RÉCUPÉRATION DU SKIN JOUEUR
     // ─────────────────────────────────────────────────────────────
 
-    /**
-     * Récupère le skin via l'API Bukkit/Paper (PlayerProfile).
-     * Ne nécessite pas d'appel HTTP — utilise les données déjà chargées par le serveur.
-     */
     private BufferedImage fetchPlayerSkinViaBukkit(Player player) {
         try {
-            var profile = player.getPlayerProfile();
-            PlayerTextures textures = profile.getTextures();
+            PlayerTextures textures = player.getPlayerProfile().getTextures();
             java.net.URL skinUrl = textures.getSkin();
             if (skinUrl == null) return null;
             return downloadImage(skinUrl.toString());
@@ -205,44 +280,19 @@ public class SkinManager {
         }
     }
 
-    /**
-     * Fallback : récupère le skin depuis l'API sessionserver Mojang.
-     */
     private BufferedImage fetchPlayerSkinFromMojang(UUID uuid) {
         try {
-            String raw = fetchRawTextureValue(uuid);
-            if (raw == null) return null;
-            String textureJson = new String(Base64.getDecoder().decode(raw), StandardCharsets.UTF_8);
+            String uuidNoDash = uuid.toString().replace("-", "");
+            String profileJson = httpGet("https://sessionserver.mojang.com/session/minecraft/profile/" + uuidNoDash);
+            if (profileJson == null) return null;
+            String rawTexture = extractTextureValue(profileJson);
+            if (rawTexture == null) return null;
+            String textureJson = new String(Base64.getDecoder().decode(rawTexture), StandardCharsets.UTF_8);
             String skinUrl = extractSkinUrl(textureJson);
             if (skinUrl == null) return null;
             return downloadImage(skinUrl);
         } catch (Exception e) {
             log.warning("fetchPlayerSkinFromMojang(" + uuid + ") : " + e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Sauvegarde la valeur de texture originale du joueur si pas encore fait.
-     */
-    private void saveOriginalSkinIfNeeded(Player player) {
-        PlayerDataManager dm = plugin.getPlayerDataManager();
-        if (dm.hasOriginalSkin(player.getUniqueId())) return;
-        try {
-            String raw = fetchRawTextureValue(player.getUniqueId());
-            if (raw != null) dm.saveOriginalSkin(player.getUniqueId(), raw);
-        } catch (Exception e) {
-            log.fine("saveOriginalSkinIfNeeded(" + player.getName() + ") : " + e.getMessage());
-        }
-    }
-
-    private String fetchRawTextureValue(UUID uuid) {
-        try {
-            String uuidNoDash = uuid.toString().replace("-", "");
-            String json = httpGet("https://sessionserver.mojang.com/session/minecraft/profile/" + uuidNoDash);
-            if (json == null) return null;
-            return extractTextureValue(json);
-        } catch (Exception e) {
             return null;
         }
     }
@@ -262,21 +312,6 @@ public class SkinManager {
         return out;
     }
 
-    private String imageToBase64(BufferedImage img) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ImageIO.write(img, "png", baos);
-        return Base64.getEncoder().encodeToString(baos.toByteArray());
-    }
-
-    /**
-     * Construit la valeur de texture (base64 du JSON Minecraft).
-     * Format : base64({ "textures": { "SKIN": { "url": "data:image/png;base64,<B64>" } } })
-     */
-    private String buildTextureValue(String base64Png) {
-        String json = "{\"textures\":{\"SKIN\":{\"url\":\"data:image/png;base64," + base64Png + "\"}}}";
-        return Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
-    }
-
     // ─────────────────────────────────────────────────────────────
     // UTILITAIRES HTTP / JSON
     // ─────────────────────────────────────────────────────────────
@@ -289,11 +324,8 @@ public class SkinManager {
             conn.setReadTimeout(6000);
             conn.setRequestProperty("User-Agent", "Site23Skin/1.0");
             if (conn.getResponseCode() != 200) return null;
-            try (InputStream is = conn.getInputStream();
-                 ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-                byte[] buf = new byte[4096]; int n;
-                while ((n = is.read(buf)) != -1) baos.write(buf, 0, n);
-                return baos.toString(StandardCharsets.UTF_8);
+            try (InputStream is = conn.getInputStream()) {
+                return streamToString(is);
             }
         } catch (Exception e) {
             log.fine("httpGet(" + urlStr + ") : " + e.getMessage());
@@ -312,6 +344,15 @@ public class SkinManager {
         } catch (Exception e) {
             log.fine("downloadImage(" + urlStr + ") : " + e.getMessage());
             return null;
+        }
+    }
+
+    private String streamToString(InputStream is) throws IOException {
+        if (is == null) return "";
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            byte[] buf = new byte[4096]; int n;
+            while ((n = is.read(buf)) != -1) baos.write(buf, 0, n);
+            return baos.toString(StandardCharsets.UTF_8);
         }
     }
 
@@ -335,5 +376,29 @@ public class SkinManager {
         ui += 7;
         int end = textureJson.indexOf("\"", ui);
         return end == -1 ? null : textureJson.substring(ui, end);
+    }
+
+    /**
+     * Extrait une valeur string d'un JSON simple (sans librairie).
+     * Cherche "key":"valeur" et retourne valeur.
+     */
+    private String extractJsonString(String json, String key) {
+        String search = "\"" + key + "\":\"";
+        int idx = json.indexOf(search);
+        if (idx == -1) return null;
+        idx += search.length();
+        StringBuilder sb = new StringBuilder();
+        while (idx < json.length()) {
+            char c = json.charAt(idx);
+            if (c == '"') break;
+            if (c == '\\' && idx + 1 < json.length()) {
+                idx++;
+                sb.append(json.charAt(idx));
+            } else {
+                sb.append(c);
+            }
+            idx++;
+        }
+        return sb.toString();
     }
 }
