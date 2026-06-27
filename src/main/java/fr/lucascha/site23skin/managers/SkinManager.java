@@ -253,13 +253,23 @@ public class SkinManager {
     /**
      * Fusionne deux skins 64x64 :
      *   - Base   : skin de grade (tout le corps)
-     *   - Dessus : lignes 0-15 du skin joueur (tête + overlay chapeau)
+     *   - Dessus : tête du joueur (y=0-15) SANS l'overlay casque (x=40-47, y=8-15)
      */
     private BufferedImage mergeSkins(BufferedImage playerSkin, BufferedImage gradeSkin) {
         BufferedImage result = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = result.createGraphics();
+
+        // 1) Corps complet du grade
         g.drawImage(gradeSkin, 0, 0, null);
+
+        // 2) Bande y=0-15 du joueur (tête + métadonnées)
         g.drawImage(playerSkin.getSubimage(0, 0, 64, 16), 0, 0, null);
+
+        // 3) Efface l'overlay casque (x=40-47, y=8-15) pour ne pas l'afficher
+        g.setComposite(AlphaComposite.Clear);
+        g.fillRect(40, 8, 8, 8);
+        g.setComposite(AlphaComposite.SrcOver);
+
         g.dispose();
         return result;
     }
