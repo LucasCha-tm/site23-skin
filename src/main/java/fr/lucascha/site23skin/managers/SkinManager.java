@@ -131,7 +131,7 @@ public class SkinManager {
         }
 
         // 3) Fusion : tête+chapeau du joueur (y 0-15) + corps du grade (y 16-63)
-        BufferedImage merged = mergeSkins(playerSkin, gradeSkin);
+        BufferedImage merged = mergeSkins(playerSkin, gradeSkin, grade);
 
         // 4) Clé de cache unique : grade + UUID joueur (la tête change selon le joueur)
         String cacheKey = "site23_" + grade.getSkinFile().replace(".png", "")
@@ -251,27 +251,65 @@ public class SkinManager {
     // ─────────────────────────────────────────────────────────────
 
     /**
-     * Fusionne deux skins 64x64 :
-     *   - Base   : skin de grade (tout le corps)
-     *   - Dessus : tête du joueur (y=0-15) SANS l'overlay casque (x=40-47, y=8-15)
+     * Fusionne deux skins selon le département du grade :
+     *
+     *  - SCP      : skin de grade utilisé intégralement (pas de tête joueur)
+     *  - classe_d : corps grade + tête joueur + BRAS du joueur (peau visible)
+     *  - autres   : corps grade + tête joueur (sans overlay casque)
+     *
+     * Carte du skin Minecraft 64x64 (format 1.8+) :
+     *   Tête base     : x= 8, y= 8, w=8,  h=8
+     *   Casque overlay: x=40, y= 8, w=8,  h=8  <- retiré pour tout le monde
+     *   Bras droit    : x=44, y=16, w=4,  h=12
+     *   Bras droit 2  : x=44, y=32, w=4,  h=12
+     *   Bras gauche   : x=36, y=52, w=4,  h=12
+     *   Bras gauche 2 : x=52, y=52, w=4,  h=12
      */
-    private BufferedImage mergeSkins(BufferedImage playerSkin, BufferedImage gradeSkin) {
+    private BufferedImage mergeSkins(BufferedImage playerSkin, BufferedImage gradeSkin, GradeData grade) {
+        String dept = grade.getDepartment().toLowerCase();
+
+        // SCP : skin fixe, aucune personnalisation du joueur
+        if (dept.equals("scp")) {
+            BufferedImage result = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = result.createGraphics();
+            g.drawImage(gradeSkin, 0, 0, null);
+            g.dispose();
+            return result;
+        }
+
         BufferedImage result = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = result.createGraphics();
 
         // 1) Corps complet du grade
         g.drawImage(gradeSkin, 0, 0, null);
 
-        // 2) Bande y=0-15 du joueur (tête + métadonnées)
+        // 2) Tête du joueur (bande y=0-15)
         g.drawImage(playerSkin.getSubimage(0, 0, 64, 16), 0, 0, null);
 
-        // 3) Efface l'overlay casque (x=40-47, y=8-15) pour ne pas l'afficher
+        // 3) Supprime l'overlay casque (x=40-47, y=8-15)
         g.setComposite(AlphaComposite.Clear);
         g.fillRect(40, 8, 8, 8);
         g.setComposite(AlphaComposite.SrcOver);
 
+        // Classe D : copie les bras du joueur pour que la peau soit visible
+        if (dept.equals("classe_d")) {
+            // Bras droit base  (x=44, y=16, 4x12)
+            g.drawImage(playerSkin.getSubimage(44, 16, 4, 12), 44, 16, null);
+            // Bras droit outer (x=44, y=32, 4x12)
+            g.drawImage(playerSkin.getSubimage(44, 32, 4, 12), 44, 32, null);
+            // Bras gauche base  (x=36, y=52, 4x12)
+            g.drawImage(playerSkin.getSubimage(36, 52, 4, 12), 36, 52, null);
+            // Bras gauche outer (x=52, y=52, 4x12)
+            g.drawImage(playerSkin.getSubimage(52, 52, 4, 12), 52, 52, null);
+        }
+
         g.dispose();
         return result;
+    }
+
+    /** Surcharge sans département (fallback interne). */
+    private BufferedImage mergeSkins(BufferedImage playerSkin, BufferedImage gradeSkin) {
+        return mergeSkins(playerSkin, gradeSkin, new GradeData("_fb", "", "autre", ""));
     }
 
     // ─────────────────────────────────────────────────────────────

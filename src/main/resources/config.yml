@@ -216,3 +216,41 @@ grades:
     display: "Classe D (Brassard Noir)"
     department: "classe_d"
     skin-file: "classe_d_noir.png"
+
+  # ── SCP (Entités) ─────────────────────────────────────────────
+  # Ces skins sont fixes : pas de tête ni de bras du joueur.
+  # Placez les PNG correspondants dans plugins/Site23Skin/skins/
+  scp_3008_homme:
+    display: "SCP-3008 (Employé Homme)"
+    department: "scp"
+    skin-file: "3008men.png"
+
+  scp_3008_femme:
+    display: "SCP-3008 (Employée Femme)"
+    department: "scp"
+    skin-file: "3008woman.png"
+
+  scp_096:
+    display: "SCP-096"
+    department: "scp"
+    skin-file: "096.png"
+
+  scp_173:
+    display: "SCP-173"
+    department: "scp"
+    skin-file: "173.png"
+
+  scp_049:
+    display: "SCP-049"
+    department: "scp"
+    skin-file: "049.png"
+
+  scp_457:
+    display: "SCP-457"
+    department: "scp"
+    skin-file: "457.png"
+
+  scp_087:
+    display: "SCP-087"
+    department: "scp"
+    skin-file: "087.png"
