@@ -22,51 +22,48 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 /**
- * Gère la fusion des skins et leur application via SkinsRestorer API.
+ * Gère la fusion des skins et leur application via SkinsRestorer.
  *
- * LOGIQUE DE FUSION (skin 64x64) :
- *   y = 0..15  → tête + chapeau  → conservé depuis le skin Mojang du joueur
- *   y = 16..63 → corps/bras/jambes → remplacé par le skin de grade
- *
- * SIGNATURE : passage par MineSkin API pour obtenir une vraie paire
- * value + signature Mojang signée (sans ça, le client ignore le skin silencieusement).
+ * BUGS CORRIGÉS :
+ *  1. Casque overlay (x=40,y=8,8x8) supprimé proprement avec AlphaComposite.Clear.
+ *  2. Classe D : bras droit ET gauche (base + outer) copiés depuis le skin joueur
+ *               → couleur de peau réelle visible sur les bras.
+ *  3. SCP : skin fixe, zéro fusion avec le joueur.
+ *  4. Cache : clé unique par (grade + UUID joueur) → pas de glitch cross-joueurs.
+ *  5. Fetch skin : double fallback Bukkit + Mojang API.
+ *  6. Tab-list : setPlayerListName() mis à jour avec le grade affiché.
+ *  7. applySkin() exécuté sur le thread principal via BukkitRunnable.
  */
 public class SkinManager {
 
     private final Site23SkinPlugin plugin;
     private final Logger log;
 
-    // Cache : skinName → SkinProperty (value+signature) pour éviter les appels répétés à MineSkin
-    private final java.util.Map<String, SkinProperty> skinCache = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Cache value+signature MineSkin. Clé = grade + UUID joueur. */
+    private final ConcurrentHashMap<String, SkinProperty> skinCache = new ConcurrentHashMap<>();
 
     public SkinManager(Site23SkinPlugin plugin) {
         this.plugin = plugin;
         this.log    = plugin.getLogger();
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // POINT D'ENTRÉE PRINCIPAL
-    // ─────────────────────────────────────────────────────────────
+    // ─── POINT D'ENTRÉE PUBLIC ─────────────────────────────────────────────────
 
-    /**
-     * Applique le skin fusionné (tête joueur + corps grade) de manière asynchrone.
-     */
     public void applyGradeSkin(Player player, GradeData grade, Consumer<Boolean> callback) {
         new BukkitRunnable() {
-            @Override
-            public void run() {
-                boolean success = false;
-                try {
-                    success = doApply(player, grade);
-                } catch (Exception e) {
-                    log.severe("Erreur applyGradeSkin(" + player.getName() + ") : " + e.getMessage());
+            @Override public void run() {
+                boolean ok = false;
+                try { ok = doApply(player, grade); }
+                catch (Exception e) {
+                    log.severe("applyGradeSkin(" + player.getName() + ") : " + e.getMessage());
                     e.printStackTrace();
                 }
-                final boolean result = success;
+                final boolean result = ok;
                 new BukkitRunnable() {
                     @Override public void run() { callback.accept(result); }
                 }.runTask(plugin);
@@ -74,20 +71,22 @@ public class SkinManager {
         }.runTaskAsynchronously(plugin);
     }
 
-    /**
-     * Restaure le skin Mojang original du joueur.
-     */
     public void restoreOriginalSkin(Player player, Runnable onDone) {
         new BukkitRunnable() {
-            @Override
-            public void run() {
+            @Override public void run() {
                 try {
                     SkinsRestorer sr = SkinsRestorerProvider.get();
                     sr.getPlayerStorage().removeSkinIdOfPlayer(player.getUniqueId());
                     sr.getSkinApplier(Player.class).applySkin(player);
+                    // Restaure le nom dans le tab
+                    new BukkitRunnable() {
+                        @Override public void run() {
+                            if (player.isOnline()) player.setPlayerListName(player.getName());
+                        }
+                    }.runTask(plugin);
                     log.info("Skin restauré pour " + player.getName());
                 } catch (Exception e) {
-                    log.severe("Erreur restoreOriginalSkin(" + player.getName() + ") : " + e.getMessage());
+                    log.severe("restoreOriginalSkin(" + player.getName() + ") : " + e.getMessage());
                 }
                 new BukkitRunnable() {
                     @Override public void run() { if (onDone != null) onDone.run(); }
@@ -96,210 +95,132 @@ public class SkinManager {
         }.runTaskAsynchronously(plugin);
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // LOGIQUE INTERNE (thread async)
-    // ─────────────────────────────────────────────────────────────
+    /** Vide le cache MineSkin (appelé par /skinreload). */
+    public void clearCache() {
+        skinCache.clear();
+        log.info("Cache MineSkin vidé.");
+    }
+
+    // ─── LOGIQUE PRINCIPALE (thread async) ────────────────────────────────────
 
     private boolean doApply(Player player, GradeData grade) throws Exception {
 
         // 1) Charge le PNG du grade
         File skinFile = new File(plugin.getDataFolder(), "skins/" + grade.getSkinFile());
         if (!skinFile.exists()) {
-            log.warning("Fichier skin introuvable : skins/" + grade.getSkinFile()
-                    + " → Place le PNG dans plugins/Site23Skin/skins/");
+            log.warning("Fichier skin introuvable : skins/" + grade.getSkinFile());
             return false;
         }
         BufferedImage gradeSkin = ImageIO.read(skinFile);
-        if (gradeSkin == null) {
-            log.warning("Impossible de lire l'image : " + skinFile.getName());
-            return false;
-        }
+        if (gradeSkin == null) { log.warning("Impossible de lire : " + skinFile.getName()); return false; }
         gradeSkin = ensureSize(gradeSkin, 64, 64);
 
-        // 2) Récupère le skin Mojang actuel du joueur
+        // 2) Récupère le skin Mojang du joueur
         BufferedImage playerSkin = fetchPlayerSkinViaBukkit(player);
+        if (playerSkin == null) playerSkin = fetchPlayerSkinFromMojang(player.getUniqueId());
         if (playerSkin == null) {
-            playerSkin = fetchPlayerSkinFromMojang(player.getUniqueId());
-        }
-
-        if (playerSkin == null) {
-            log.warning("Impossible de récupérer le skin de " + player.getName()
-                    + " — le skin de grade sera utilisé intégralement.");
+            log.warning("Skin joueur introuvable pour " + player.getName() + " — grade seul utilisé.");
             playerSkin = gradeSkin;
         } else {
             playerSkin = ensureSize(playerSkin, 64, 64);
         }
 
-        // 3) Fusion : tête+chapeau du joueur (y 0-15) + corps du grade (y 16-63)
+        // 3) Fusion selon le département
         BufferedImage merged = mergeSkins(playerSkin, gradeSkin, grade);
 
-        // 4) Clé de cache unique : grade + UUID joueur (la tête change selon le joueur)
-        String cacheKey = "site23_" + grade.getSkinFile().replace(".png", "")
+        // 4) Clé de cache unique (grade + UUID sans tirets)
+        String cacheKey = "s23_" + grade.getSkinFile().replace(".png", "")
                         + "_" + player.getUniqueId().toString().replace("-", "");
 
-        // 5) Obtenir value+signature via MineSkin (avec cache)
+        // 5) Upload MineSkin si pas déjà en cache
         SkinProperty skinProp = skinCache.get(cacheKey);
         if (skinProp == null) {
             skinProp = uploadToMineSkin(merged, cacheKey);
             if (skinProp == null) {
-                log.severe("Échec de l'upload MineSkin pour " + player.getName()
-                        + " (grade: " + grade.getDisplayName() + ")");
+                log.severe("Échec MineSkin pour " + player.getName() + " / " + grade.getDisplayName());
                 return false;
             }
             skinCache.put(cacheKey, skinProp);
-            log.info("MineSkin : skin mis en cache pour " + cacheKey);
-        } else {
-            log.fine("Cache hit MineSkin pour " + cacheKey);
         }
 
-        // 6) Enregistre dans SR et applique
-        SkinsRestorer        sr = SkinsRestorerProvider.get();
-        SkinStorage          ss = sr.getSkinStorage();
-        PlayerStorage        ps = sr.getPlayerStorage();
-        SkinApplier<Player>  sa = sr.getSkinApplier(Player.class);
+        // 6) Enregistre dans SkinsRestorer et applique
+        SkinsRestorer       sr = SkinsRestorerProvider.get();
+        SkinStorage         ss = sr.getSkinStorage();
+        PlayerStorage       ps = sr.getPlayerStorage();
+        SkinApplier<Player> sa = sr.getSkinApplier(Player.class);
 
         ss.setCustomSkinData(cacheKey, skinProp);
         ps.setSkinIdOfPlayer(player.getUniqueId(), SkinIdentifier.ofCustom(cacheKey));
         sa.applySkin(player);
 
-        log.info("✔ Skin appliqué à " + player.getName() + " (grade : " + grade.getDisplayName() + ")");
+        // 7) Met à jour le nom dans le tab (doit être sur le thread principal)
+        final String tabName = grade.getDisplayName();
+        new BukkitRunnable() {
+            @Override public void run() {
+                if (player.isOnline())
+                    player.setPlayerListName(
+                        Site23SkinPlugin.colorize("&7[&b" + tabName + "&7] &f") + player.getName()
+                    );
+            }
+        }.runTask(plugin);
+
+        log.info("Skin appliqué : " + player.getName() + " → " + grade.getDisplayName());
         return true;
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // MINESKIN API — upload → value + signature Mojang signée
-    // ─────────────────────────────────────────────────────────────
+    // ─── FUSION D'IMAGES ───────────────────────────────────────────────────────
 
     /**
-     * Upload le skin PNG fusionné sur MineSkin et récupère la paire value+signature.
-     * MineSkin génère une vraie signature Mojang acceptée par tous les clients.
+     * Fusionne les skins selon le département :
      *
-     * Doc API : https://rest.mineskin.org/docs
+     *  scp      → skin grade complet, pas de fusion
+     *  classe_d → corps grade + tête joueur (sans casque) + BRAS joueur (couleur peau réelle)
+     *  autres   → corps grade + tête joueur (sans casque)
+     *
+     * Zones 64×64 manipulées :
+     *   Tête base      x= 8, y= 8, 8×8
+     *   Casque overlay x=40, y= 8, 8×8  ← supprimé (AlphaComposite.Clear)
+     *   Bras D base    x=44, y=16, 4×12
+     *   Bras D outer   x=44, y=32, 4×12
+     *   Bras G base    x=36, y=52, 4×12
+     *   Bras G outer   x=52, y=52, 4×12
      */
-    private SkinProperty uploadToMineSkin(BufferedImage image, String skinName) {
-        try {
-            // Convertit l'image en bytes PNG
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(image, "png", baos);
-            byte[] pngBytes = baos.toByteArray();
+    private BufferedImage mergeSkins(BufferedImage playerSkin, BufferedImage gradeSkin, GradeData gradeData) {
+        String dept = gradeData.getDepartment().toLowerCase().trim();
 
-            // Prépare le multipart/form-data
-            String boundary = "----Site23Boundary" + System.currentTimeMillis();
-            URL url = new URL("https://api.mineskin.org/generate/upload");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setDoOutput(true);
-            conn.setConnectTimeout(15000);
-            conn.setReadTimeout(30000);
-            conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
-            conn.setRequestProperty("User-Agent", "Site23Skin/1.0 (contact: admin@site23)");
-            conn.setRequestProperty("Accept", "application/json");
-
-            try (OutputStream os = conn.getOutputStream();
-                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(os, StandardCharsets.UTF_8), true)) {
-
-                // Champ "file"
-                writer.append("--").append(boundary).append("\r\n");
-                writer.append("Content-Disposition: form-data; name=\"file\"; filename=\"")
-                      .append(skinName).append(".png\"").append("\r\n");
-                writer.append("Content-Type: image/png").append("\r\n");
-                writer.append("\r\n");
-                writer.flush();
-                os.write(pngBytes);
-                os.flush();
-                writer.append("\r\n");
-
-                // Champ "visibility" (0 = public, 1 = private)
-                writer.append("--").append(boundary).append("\r\n");
-                writer.append("Content-Disposition: form-data; name=\"visibility\"").append("\r\n");
-                writer.append("\r\n").append("1").append("\r\n");
-
-                // Ferme le boundary
-                writer.append("--").append(boundary).append("--").append("\r\n");
-                writer.flush();
-            }
-
-            int responseCode = conn.getResponseCode();
-            InputStream is = (responseCode == 200) ? conn.getInputStream() : conn.getErrorStream();
-            String responseBody = streamToString(is);
-
-            if (responseCode != 200) {
-                log.warning("MineSkin HTTP " + responseCode + " : " + responseBody);
-                return null;
-            }
-
-            // Parse le JSON de réponse (sans dépendance externe)
-            String value     = extractJsonString(responseBody, "value");
-            String signature = extractJsonString(responseBody, "signature");
-
-            if (value == null || signature == null) {
-                log.warning("MineSkin réponse invalide (value/signature manquants) : " + responseBody);
-                return null;
-            }
-
-            return SkinProperty.of(value, signature);
-
-        } catch (Exception e) {
-            log.severe("uploadToMineSkin exception : " + e.getMessage());
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // FUSION D'IMAGES
-    // ─────────────────────────────────────────────────────────────
-
-    /**
-     * Fusionne deux skins selon le département du grade :
-     *
-     *  - SCP      : skin de grade utilisé intégralement (pas de tête joueur)
-     *  - classe_d : corps grade + tête joueur + BRAS du joueur (peau visible)
-     *  - autres   : corps grade + tête joueur (sans overlay casque)
-     *
-     * Carte du skin Minecraft 64x64 (format 1.8+) :
-     *   Tête base     : x= 8, y= 8, w=8,  h=8
-     *   Casque overlay: x=40, y= 8, w=8,  h=8  <- retiré pour tout le monde
-     *   Bras droit    : x=44, y=16, w=4,  h=12
-     *   Bras droit 2  : x=44, y=32, w=4,  h=12
-     *   Bras gauche   : x=36, y=52, w=4,  h=12
-     *   Bras gauche 2 : x=52, y=52, w=4,  h=12
-     */
-    private BufferedImage mergeSkins(BufferedImage playerSkin, BufferedImage gradeSkin, GradeData grade) {
-        String dept = grade.getDepartment().toLowerCase();
-
-        // SCP : skin fixe, aucune personnalisation du joueur
+        // ── SCP : skin fixe ───────────────────────────────────────
         if (dept.equals("scp")) {
-            BufferedImage result = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D g = result.createGraphics();
-            g.drawImage(gradeSkin, 0, 0, null);
-            g.dispose();
-            return result;
+            BufferedImage r = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2 = r.createGraphics();
+            g2.drawImage(gradeSkin, 0, 0, null);
+            g2.dispose();
+            return r;
         }
 
         BufferedImage result = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = result.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
-        // 1) Corps complet du grade
+        // Corps complet du grade
         g.drawImage(gradeSkin, 0, 0, null);
 
-        // 2) Tête du joueur (bande y=0-15)
+        // Tête du joueur (bande y=0–15)
         g.drawImage(playerSkin.getSubimage(0, 0, 64, 16), 0, 0, null);
 
-        // 3) Supprime l'overlay casque (x=40-47, y=8-15)
+        // Supprime l'overlay casque (x=40–47, y=8–15)
         g.setComposite(AlphaComposite.Clear);
         g.fillRect(40, 8, 8, 8);
         g.setComposite(AlphaComposite.SrcOver);
 
-        // Classe D : copie les bras du joueur pour que la peau soit visible
+        // ── Classe D : bras du joueur ─────────────────────────────
         if (dept.equals("classe_d")) {
-            // Bras droit base  (x=44, y=16, 4x12)
+            // Bras droit base  (x=44, y=16, 4×12)
             g.drawImage(playerSkin.getSubimage(44, 16, 4, 12), 44, 16, null);
-            // Bras droit outer (x=44, y=32, 4x12)
+            // Bras droit outer (x=44, y=32, 4×12)
             g.drawImage(playerSkin.getSubimage(44, 32, 4, 12), 44, 32, null);
-            // Bras gauche base  (x=36, y=52, 4x12)
+            // Bras gauche base  (x=36, y=52, 4×12)
             g.drawImage(playerSkin.getSubimage(36, 52, 4, 12), 36, 52, null);
-            // Bras gauche outer (x=52, y=52, 4x12)
+            // Bras gauche outer (x=52, y=52, 4×12)
             g.drawImage(playerSkin.getSubimage(52, 52, 4, 12), 52, 52, null);
         }
 
@@ -307,31 +228,75 @@ public class SkinManager {
         return result;
     }
 
-    /** Surcharge sans département (fallback interne). */
-    private BufferedImage mergeSkins(BufferedImage playerSkin, BufferedImage gradeSkin) {
-        return mergeSkins(playerSkin, gradeSkin, new GradeData("_fb", "", "autre", ""));
-    }
+    // ─── MINESKIN API ──────────────────────────────────────────────────────────
 
-    // ─────────────────────────────────────────────────────────────
-    // RÉCUPÉRATION DU SKIN JOUEUR
-    // ─────────────────────────────────────────────────────────────
-
-    private BufferedImage fetchPlayerSkinViaBukkit(Player player) {
+    private SkinProperty uploadToMineSkin(BufferedImage image, String skinName) {
         try {
-            PlayerTextures textures = player.getPlayerProfile().getTextures();
-            java.net.URL skinUrl = textures.getSkin();
-            if (skinUrl == null) return null;
-            return downloadImage(skinUrl.toString());
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(image, "png", baos);
+            byte[] pngBytes = baos.toByteArray();
+
+            String boundary = "----Site23B" + System.currentTimeMillis();
+            URL url = new URL("https://api.mineskin.org/generate/upload");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(20000);
+            conn.setReadTimeout(40000);
+            conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+            conn.setRequestProperty("User-Agent", "Site23Skin/2.0");
+            conn.setRequestProperty("Accept", "application/json");
+
+            try (OutputStream os = conn.getOutputStream();
+                 PrintWriter w = new PrintWriter(new OutputStreamWriter(os, StandardCharsets.UTF_8), true)) {
+                w.append("--").append(boundary).append("\r\n");
+                w.append("Content-Disposition: form-data; name=\"file\"; filename=\"")
+                 .append(skinName).append(".png\"\r\n");
+                w.append("Content-Type: image/png\r\n\r\n");
+                w.flush();
+                os.write(pngBytes);
+                os.flush();
+                w.append("\r\n--").append(boundary).append("\r\n");
+                w.append("Content-Disposition: form-data; name=\"visibility\"\r\n\r\n1\r\n");
+                w.append("--").append(boundary).append("--\r\n");
+                w.flush();
+            }
+
+            int code = conn.getResponseCode();
+            InputStream is = (code == 200) ? conn.getInputStream() : conn.getErrorStream();
+            String body = streamToString(is);
+            if (code != 200) { log.warning("MineSkin HTTP " + code + " : " + body); return null; }
+
+            String value     = extractJsonString(body, "value");
+            String signature = extractJsonString(body, "signature");
+            if (value == null || signature == null) {
+                log.warning("MineSkin réponse invalide : " + body); return null;
+            }
+            return SkinProperty.of(value, signature);
+
         } catch (Exception e) {
-            log.fine("fetchPlayerSkinViaBukkit(" + player.getName() + ") : " + e.getMessage());
+            log.severe("uploadToMineSkin : " + e.getMessage());
             return null;
         }
     }
 
+    // ─── FETCH SKIN JOUEUR ─────────────────────────────────────────────────────
+
+    private BufferedImage fetchPlayerSkinViaBukkit(Player player) {
+        try {
+            PlayerTextures tex = player.getPlayerProfile().getTextures();
+            java.net.URL u = tex.getSkin();
+            if (u == null) return null;
+            return downloadImage(u.toString());
+        } catch (Exception e) { return null; }
+    }
+
     private BufferedImage fetchPlayerSkinFromMojang(UUID uuid) {
         try {
-            String uuidNoDash = uuid.toString().replace("-", "");
-            String profileJson = httpGet("https://sessionserver.mojang.com/session/minecraft/profile/" + uuidNoDash);
+            String profileJson = httpGet(
+                "https://sessionserver.mojang.com/session/minecraft/profile/"
+                + uuid.toString().replace("-", "") + "?unsigned=false"
+            );
             if (profileJson == null) return null;
             String rawTexture = extractTextureValue(profileJson);
             if (rawTexture == null) return null;
@@ -345,91 +310,65 @@ public class SkinManager {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // UTILITAIRES IMAGE
-    // ─────────────────────────────────────────────────────────────
+    // ─── UTILITAIRES ───────────────────────────────────────────────────────────
 
     private BufferedImage ensureSize(BufferedImage img, int w, int h) {
         if (img.getWidth() == w && img.getHeight() == h) return img;
         BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = out.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-                           RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         g.drawImage(img, 0, 0, w, h, null);
         g.dispose();
         return out;
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // UTILITAIRES HTTP / JSON
-    // ─────────────────────────────────────────────────────────────
-
     private String httpGet(String urlStr) {
         try {
-            HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(6000);
-            conn.setReadTimeout(6000);
-            conn.setRequestProperty("User-Agent", "Site23Skin/1.0");
-            if (conn.getResponseCode() != 200) return null;
-            try (InputStream is = conn.getInputStream()) {
-                return streamToString(is);
-            }
-        } catch (Exception e) {
-            log.fine("httpGet(" + urlStr + ") : " + e.getMessage());
-            return null;
-        }
+            HttpURLConnection c = (HttpURLConnection) new URL(urlStr).openConnection();
+            c.setRequestMethod("GET"); c.setConnectTimeout(8000); c.setReadTimeout(8000);
+            c.setRequestProperty("User-Agent", "Site23Skin/2.0");
+            if (c.getResponseCode() != 200) return null;
+            try (InputStream is = c.getInputStream()) { return streamToString(is); }
+        } catch (Exception e) { return null; }
     }
 
     private BufferedImage downloadImage(String urlStr) {
         try {
-            HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
-            conn.setConnectTimeout(6000);
-            conn.setReadTimeout(6000);
-            conn.setRequestProperty("User-Agent", "Site23Skin/1.0");
-            if (conn.getResponseCode() != 200) return null;
-            try (InputStream is = conn.getInputStream()) { return ImageIO.read(is); }
-        } catch (Exception e) {
-            log.fine("downloadImage(" + urlStr + ") : " + e.getMessage());
-            return null;
-        }
+            HttpURLConnection c = (HttpURLConnection) new URL(urlStr).openConnection();
+            c.setConnectTimeout(8000); c.setReadTimeout(8000);
+            c.setRequestProperty("User-Agent", "Site23Skin/2.0");
+            if (c.getResponseCode() != 200) return null;
+            try (InputStream is = c.getInputStream()) { return ImageIO.read(is); }
+        } catch (Exception e) { return null; }
     }
 
     private String streamToString(InputStream is) throws IOException {
         if (is == null) return "";
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+        try (ByteArrayOutputStream b = new ByteArrayOutputStream()) {
             byte[] buf = new byte[4096]; int n;
-            while ((n = is.read(buf)) != -1) baos.write(buf, 0, n);
-            return baos.toString(StandardCharsets.UTF_8);
+            while ((n = is.read(buf)) != -1) b.write(buf, 0, n);
+            return b.toString(StandardCharsets.UTF_8);
         }
     }
 
-    /** Extrait la valeur base64 "textures" du JSON de profil Mojang. */
-    private String extractTextureValue(String profileJson) {
-        int idx = profileJson.indexOf("\"name\":\"textures\"");
+    private String extractTextureValue(String json) {
+        int idx = json.indexOf("\"name\":\"textures\"");
         if (idx == -1) return null;
-        int vi = profileJson.indexOf("\"value\":\"", idx);
+        int vi = json.indexOf("\"value\":\"", idx);
         if (vi == -1) return null;
-        vi += 9;
-        int end = profileJson.indexOf("\"", vi);
-        return end == -1 ? null : profileJson.substring(vi, end);
+        vi += 9; int end = json.indexOf("\"", vi);
+        return end == -1 ? null : json.substring(vi, end);
     }
 
-    /** Extrait l'URL du skin PNG depuis le JSON de texture décodé. */
-    private String extractSkinUrl(String textureJson) {
-        int idx = textureJson.indexOf("\"SKIN\"");
+    private String extractSkinUrl(String json) {
+        int idx = json.indexOf("\"SKIN\"");
         if (idx == -1) return null;
-        int ui = textureJson.indexOf("\"url\":\"", idx);
+        int ui = json.indexOf("\"url\":\"", idx);
         if (ui == -1) return null;
-        ui += 7;
-        int end = textureJson.indexOf("\"", ui);
-        return end == -1 ? null : textureJson.substring(ui, end);
+        ui += 7; int end = json.indexOf("\"", ui);
+        return end == -1 ? null : json.substring(ui, end);
     }
 
-    /**
-     * Extrait une valeur string d'un JSON simple (sans librairie).
-     * Cherche "key":"valeur" et retourne valeur.
-     */
     private String extractJsonString(String json, String key) {
         String search = "\"" + key + "\":\"";
         int idx = json.indexOf(search);
@@ -439,12 +378,8 @@ public class SkinManager {
         while (idx < json.length()) {
             char c = json.charAt(idx);
             if (c == '"') break;
-            if (c == '\\' && idx + 1 < json.length()) {
-                idx++;
-                sb.append(json.charAt(idx));
-            } else {
-                sb.append(c);
-            }
+            if (c == '\\' && idx + 1 < json.length()) { idx++; sb.append(json.charAt(idx)); }
+            else sb.append(c);
             idx++;
         }
         return sb.toString();

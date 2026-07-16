@@ -5,10 +5,6 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 
-/**
- * /skinreload
- * Recharge la config.yml et la liste des grades sans redémarrer.
- */
 public class SkinReloadCommand implements CommandExecutor {
 
     private final Site23SkinPlugin plugin;
@@ -19,18 +15,20 @@ public class SkinReloadCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("site23skin.reload")) {
+        if (!sender.hasPermission("site23skin.skinreload")) {
             sender.sendMessage(plugin.format("&cVous n'avez pas la permission."));
             return true;
         }
 
         plugin.reloadConfig();
         plugin.getGradeManager().loadGrades();
+        plugin.getSkinManager().clearCache();
 
         sender.sendMessage(plugin.format(
-                "&aConfiguration rechargée ! &e"
-                + plugin.getGradeManager().getGradeCount()
-                + " &agrades disponibles."));
+            "&aConfiguration rechargée : &e"
+            + plugin.getGradeManager().getGradeCount()
+            + " &agrades chargés, cache MineSkin vidé."
+        ));
         return true;
     }
 }

@@ -6,13 +6,18 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.UUID;
 
 /**
- * Réapplique automatiquement le skin de grade quand un joueur se reconnecte,
- * si l'option persistent est activée dans config.yml.
+ * Réapplique le skin de grade à la connexion et remet le display name dans le tab.
+ *
+ * FIXES :
+ *  - Priorité HIGHEST pour s'exécuter après SkinsRestorer (qui est en MONITOR ou LOW).
+ *  - Délai configurable (apply-delay) pour laisser SR charger le skin Mojang d'abord.
+ *  - PlayerQuitEvent : remet le nom de tab par défaut pour éviter glitch d'affichage.
  */
 public class PlayerListener implements Listener {
 
@@ -22,38 +27,40 @@ public class PlayerListener implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
-        // Si la persistance est désactivée, on ne fait rien
         if (!plugin.getConfig().getBoolean("settings.persistent", true)) return;
 
-        UUID uuid    = event.getPlayer().getUniqueId();
-        String grade = plugin.getPlayerDataManager().getGrade(uuid);
-        if (grade == null || !plugin.getGradeManager().hasGrade(grade)) return;
+        UUID uuid = event.getPlayer().getUniqueId();
+        String gradeId = plugin.getPlayerDataManager().getGrade(uuid);
+        if (gradeId == null || !plugin.getGradeManager().hasGrade(gradeId)) return;
 
-        GradeData gradeData = plugin.getGradeManager().getGrade(grade);
-        int delay = plugin.getConfig().getInt("settings.apply-delay", 40);
+        GradeData gradeData = plugin.getGradeManager().getGrade(gradeId);
+        int delay = plugin.getConfig().getInt("settings.apply-delay", 60);
 
-        // Délai configurable (défaut 2s) pour que SkinsRestorer ait fini de charger
-        // le skin Mojang original du joueur avant qu'on le fusionne
         new BukkitRunnable() {
             @Override
             public void run() {
                 if (!event.getPlayer().isOnline()) return;
-
                 plugin.getSkinManager().applyGradeSkin(
-                        event.getPlayer(),
-                        gradeData,
-                        success -> {
-                            if (!success) {
-                                plugin.getLogger().warning(
-                                        "Impossible de réappliquer le skin de grade '"
-                                        + grade + "' pour " + event.getPlayer().getName()
-                                        + " à la connexion.");
-                            }
+                    event.getPlayer(),
+                    gradeData,
+                    success -> {
+                        if (!success) {
+                            plugin.getLogger().warning(
+                                "Impossible de réappliquer le grade '"
+                                + gradeId + "' pour " + event.getPlayer().getName()
+                            );
                         }
+                    }
                 );
             }
         }.runTaskLater(plugin, delay);
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        // Remet le nom par défaut à la déconnexion pour éviter glitch dans le tab
+        event.getPlayer().setPlayerListName(event.getPlayer().getName());
     }
 }

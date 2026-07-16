@@ -5,7 +5,7 @@ settings:
   # true = le skin de grade persiste après reconnexion
   persistent: true
   # Délai en ticks avant d'appliquer le skin après connexion (20 ticks = 1s)
-  apply-delay: 40
+  apply-delay: 60
   # Lobby pour /espawn : coordonnées de téléportation
   # Définissez le monde et les coordonnées de votre lobby ici
   lobby:
@@ -218,8 +218,7 @@ grades:
     skin-file: "classe_d_noir.png"
 
   # ── SCP (Entités) ─────────────────────────────────────────────
-  # Ces skins sont fixes : pas de tête ni de bras du joueur.
-  # Placez les PNG correspondants dans plugins/Site23Skin/skins/
+  # Skin fixe : pas de fusion avec le joueur. Placez les PNG dans skins/
   scp_3008_homme:
     display: "SCP-3008 (Employé Homme)"
     department: "scp"
