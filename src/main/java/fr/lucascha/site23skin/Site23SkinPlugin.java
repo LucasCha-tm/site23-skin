@@ -1,9 +1,11 @@
 package fr.lucascha.site23skin;
 
 import fr.lucascha.site23skin.commands.*;
+import fr.lucascha.site23skin.gui.RpMenuListener;
 import fr.lucascha.site23skin.listeners.PlayerListener;
 import fr.lucascha.site23skin.managers.GradeManager;
 import fr.lucascha.site23skin.managers.PlayerDataManager;
+import fr.lucascha.site23skin.managers.OutfitManager;
 import fr.lucascha.site23skin.managers.SkinManager;
 import net.skinsrestorer.api.SkinsRestorerProvider;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -19,6 +21,7 @@ public class Site23SkinPlugin extends JavaPlugin {
     private GradeManager gradeManager;
     private PlayerDataManager playerDataManager;
     private SkinManager skinManager;
+    private OutfitManager outfitManager;
 
     @Override
     public void onEnable() {
@@ -48,8 +51,10 @@ public class Site23SkinPlugin extends JavaPlugin {
         gradeManager      = new GradeManager(this);
         playerDataManager = new PlayerDataManager(this);
         skinManager       = new SkinManager(this);
+        outfitManager     = new OutfitManager(this);
 
         gradeManager.loadGrades();
+        outfitManager.loadAll();
 
         // Commandes
         Objects.requireNonNull(getCommand("skingrade"))  .setExecutor(new SkinGradeCommand(this));
@@ -62,9 +67,13 @@ public class Site23SkinPlugin extends JavaPlugin {
         Objects.requireNonNull(getCommand("espawn"))     .setExecutor(new EspawnCommand(this));
         Objects.requireNonNull(getCommand("espawn"))     .setTabCompleter(new EspawnCommand(this));
         Objects.requireNonNull(getCommand("setlobby"))   .setExecutor(new SetLobbyCommand(this));
+        Objects.requireNonNull(getCommand("tenue"))      .setExecutor(new TenueCommand(this));
+        Objects.requireNonNull(getCommand("tenue"))      .setTabCompleter(new TenueCommand(this));
+        Objects.requireNonNull(getCommand("rpmenu"))     .setExecutor(new RpMenuCommand(this));
 
-        // Listener
+        // Listeners
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
+        getServer().getPluginManager().registerEvents(new RpMenuListener(this), this);
 
         getLogger().info("Site23Skin activé ! " + gradeManager.getGradeCount() + " grades chargés.");
     }
@@ -81,6 +90,7 @@ public class Site23SkinPlugin extends JavaPlugin {
     public GradeManager getGradeManager()         { return gradeManager; }
     public PlayerDataManager getPlayerDataManager(){ return playerDataManager; }
     public SkinManager getSkinManager()            { return skinManager; }
+    public OutfitManager getOutfitManager()         { return outfitManager; }
 
     public String format(String msg) {
         String prefix = getConfig().getString("settings.prefix", "&8[&cSite-23&8] &r");

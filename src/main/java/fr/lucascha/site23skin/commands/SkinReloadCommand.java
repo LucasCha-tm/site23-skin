@@ -22,12 +22,15 @@ public class SkinReloadCommand implements CommandExecutor {
 
         plugin.reloadConfig();
         plugin.getGradeManager().loadGrades();
+        plugin.getOutfitManager().loadAll();
         plugin.getSkinManager().clearCache();
 
         sender.sendMessage(plugin.format(
             "&aConfiguration rechargée : &e"
             + plugin.getGradeManager().getGradeCount()
-            + " &agrades chargés, cache MineSkin vidé."
+            + " &agrades et &e"
+            + plugin.getOutfitManager().getCount()
+            + " &atenues chargées, cache MineSkin vidé."
         ));
         return true;
     }

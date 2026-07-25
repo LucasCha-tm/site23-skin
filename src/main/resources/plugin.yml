@@ -31,6 +31,14 @@ commands:
     description: Définit le point de lobby pour /espawn (position actuelle)
     usage: /setlobby
     permission: site23skin.setlobby
+  tenue:
+    description: Équipe la tenue de son grade actuel
+    usage: /tenue [joueur]
+    permission: site23skin.tenue
+  rpmenu:
+    description: Ouvre le menu GUI de tenue RP
+    usage: /rpmenu
+    permission: site23skin.rpmenu
 
 permissions:
   site23skin.skingrade:
@@ -54,3 +62,152 @@ permissions:
   site23skin.setlobby:
     description: Définir le point de lobby (/setlobby)
     default: op
+  site23skin.tenue:
+    description: S'équiper de sa propre tenue de grade
+    default: true
+  site23skin.tenue.other:
+    description: Équiper la tenue d'un autre joueur
+    default: op
+  site23skin.rpmenu:
+    description: Ouvrir le menu GUI de tenue RP
+    default: true
+
+  # ── Permissions par grade (site23skin.grade.<id>) ─────────────────────────
+  # Assignez ces permissions via votre plugin de permissions (LuckPerms, etc.)
+  # Par défaut : aucun joueur n'a accès — accordez selon votre config RP.
+  site23skin.grade.recrue:
+    description: Accès au grade Recrue (Sécurité) via /rpmenu
+    default: false
+  site23skin.grade.os:
+    description: Accès au grade OS (Agent de Sécurité) via /rpmenu
+    default: false
+  site23skin.grade.oss:
+    description: Accès au grade OSS via /rpmenu
+    default: false
+  site23skin.grade.ods:
+    description: Accès au grade ODS via /rpmenu
+    default: false
+  site23skin.grade.major:
+    description: Accès au grade Major via /rpmenu
+    default: false
+  site23skin.grade.lieutenant:
+    description: Accès au grade Lieutenant via /rpmenu
+    default: false
+  site23skin.grade.capitaine:
+    description: Accès au grade Capitaine via /rpmenu
+    default: false
+  site23skin.grade.general:
+    description: Accès au grade Général via /rpmenu
+    default: false
+  site23skin.grade.stagiaire_sc:
+    description: Accès au grade Stagiaire (Scientifique) via /rpmenu
+    default: false
+  site23skin.grade.scientifique:
+    description: Accès au grade Scientifique via /rpmenu
+    default: false
+  site23skin.grade.scientifique_experimente:
+    description: Accès au grade Scientifique Expérimenté via /rpmenu
+    default: false
+  site23skin.grade.administrateur_scientifique:
+    description: Accès au grade Administrateur Scientifique via /rpmenu
+    default: false
+  site23skin.grade.junior_manager:
+    description: Accès au grade Junior Manager via /rpmenu
+    default: false
+  site23skin.grade.manager:
+    description: Accès au grade Manager via /rpmenu
+    default: false
+  site23skin.grade.site_assistant_manager:
+    description: Accès au grade Site Assistant Manager via /rpmenu
+    default: false
+  site23skin.grade.site_manager:
+    description: Accès au grade Site Manager via /rpmenu
+    default: false
+  site23skin.grade.site_senior_manager:
+    description: Accès au grade Site Senior Manager via /rpmenu
+    default: false
+  site23skin.grade.site_director:
+    description: Accès au grade Site Director via /rpmenu
+    default: false
+  site23skin.grade.technicien:
+    description: Accès au grade Technicien via /rpmenu
+    default: false
+  site23skin.grade.technicien_confirme:
+    description: Accès au grade Technicien Confirmé via /rpmenu
+    default: false
+  site23skin.grade.stagiaire_med:
+    description: Accès au grade Stagiaire (Médical) via /rpmenu
+    default: false
+  site23skin.grade.docteur:
+    description: Accès au grade Docteur via /rpmenu
+    default: false
+  site23skin.grade.medecin:
+    description: Accès au grade Médecin via /rpmenu
+    default: false
+  site23skin.grade.chirurgien:
+    description: Accès au grade Chirurgien via /rpmenu
+    default: false
+  site23skin.grade.responsable_medical:
+    description: Accès au grade Responsable Médical via /rpmenu
+    default: false
+  site23skin.grade.ic_recrue:
+    description: Accès au grade Recrue (IC) via /rpmenu
+    default: false
+  site23skin.grade.soldat:
+    description: Accès au grade Soldat via /rpmenu
+    default: false
+  site23skin.grade.caporal:
+    description: Accès au grade Caporal via /rpmenu
+    default: false
+  site23skin.grade.sergeant:
+    description: Accès au grade Sergeant via /rpmenu
+    default: false
+  site23skin.grade.ic_major:
+    description: Accès au grade Major (IC) via /rpmenu
+    default: false
+  site23skin.grade.ic_lieutenant:
+    description: Accès au grade Lieutenant (IC) via /rpmenu
+    default: false
+  site23skin.grade.ic_capitaine:
+    description: Accès au grade Capitaine (IC) via /rpmenu
+    default: false
+  site23skin.grade.ic_general:
+    description: Accès au grade Général (IC) via /rpmenu
+    default: false
+  site23skin.grade.classe_d:
+    description: Accès au grade Classe D via /rpmenu
+    default: false
+  site23skin.grade.classe_d_jaune:
+    description: Accès au grade Classe D (Brassard Jaune) via /rpmenu
+    default: false
+  site23skin.grade.classe_d_blanc:
+    description: Accès au grade Classe D (Brassard Blanc) via /rpmenu
+    default: false
+  site23skin.grade.classe_d_rouge:
+    description: Accès au grade Classe D (Brassard Rouge) via /rpmenu
+    default: false
+  site23skin.grade.classe_d_noir:
+    description: Accès au grade Classe D (Brassard Noir) via /rpmenu
+    default: false
+  site23skin.grade.scp_3008_homme:
+    description: Accès au grade SCP-3008 (Employé Homme) via /rpmenu
+    default: false
+  site23skin.grade.scp_3008_femme:
+    description: Accès au grade SCP-3008 (Employée Femme) via /rpmenu
+    default: false
+  site23skin.grade.scp_096:
+    description: Accès au grade SCP-096 via /rpmenu
+    default: false
+  site23skin.grade.scp_173:
+    description: Accès au grade SCP-173 via /rpmenu
+    default: false
+  site23skin.grade.scp_049:
+    description: Accès au grade SCP-049 via /rpmenu
+    default: false
+  site23skin.grade.scp_457:
+    description: Accès au grade SCP-457 via /rpmenu
+    default: false
+  site23skin.grade.scp_087:
+    description: Accès au grade SCP-087 via /rpmenu
+    default: false
+
